@@ -3,16 +3,22 @@ NAME = codexion
 CC = cc
 CFLAGS = -Wall -Wextra -Werror -pthread
 
-SRCS = coders/main.c
+SRCS = coders/main.c \
+	coders/args.c \
+	coders/errors.c \
+	coders/parse.c \
+	coders/parse_utils.c
 
 OBJS = $(SRCS:.c=.o)
+
+HEADER = coders/codexion.h
 
 all: $(NAME)
 
 $(NAME): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $(NAME)
 
-%.o: %.c
+%.o: %.c $(HEADER)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
