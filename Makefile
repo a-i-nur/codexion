@@ -10,7 +10,8 @@ SRCS = coders/main.c \
 	coders/parse_utils.c \
 	coders/time.c \
 	coders/log.c \
-	coders/simulation.c
+	coders/simulation.c \
+	coders/coder.c
 
 OBJS = $(SRCS:.c=.o)
 
