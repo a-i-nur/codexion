@@ -6,7 +6,7 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 18:20:15 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/01 17:09:35 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/06/02 15:43:37 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,11 @@ int	main(int argc, char **argv)
 		return (1);
 	}
 	simulation = new_simulation(args);
-	(void)simulation;
+	if (init_coders(&simulation) != 0)
+	{
+		destroy_simulation(&simulation);
+		return (1);
+	}
+	destroy_simulation(&simulation);
 	return (0);
 }
