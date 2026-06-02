@@ -7,7 +7,10 @@ SRCS = coders/main.c \
 	coders/args.c \
 	coders/errors.c \
 	coders/parse.c \
-	coders/parse_utils.c
+	coders/parse_utils.c \
+	coders/time.c \
+	coders/log.c \
+	coders/simulation.c
 
 OBJS = $(SRCS:.c=.o)
 
