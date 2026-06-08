@@ -15,10 +15,24 @@
 void	log_message(t_simulation *simulation, int coder_id, char *message)
 {
 	long	timestamp;
-	// current time - simulation start time
-	// How many milliseconds passed since simulation started?
+
+	pthread_mutex_lock(&simulation->log_mutex);
+	if (simulation_stopped(simulation))
+	{
+		pthread_mutex_unlock(&simulation->log_mutex);
+		return ;
+	}
+	timestamp = get_elapsed_ms(simulation->start_time);
+	printf("%ld %d %s\n", timestamp, coder_id, message);
+	pthread_mutex_unlock(&simulation->log_mutex);
+}
+
+void	log_burnout(t_simulation *simulation, int coder_id)
+{
+	long	timestamp;
+
 	timestamp = get_elapsed_ms(simulation->start_time);
 	pthread_mutex_lock(&simulation->log_mutex);
-	printf("%ld %d %s\n", timestamp, coder_id, message);
+	printf("%ld %d burned out\n", timestamp, coder_id);
 	pthread_mutex_unlock(&simulation->log_mutex);
 }

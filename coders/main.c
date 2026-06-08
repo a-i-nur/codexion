@@ -6,7 +6,7 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 18:20:15 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/08 14:08:41 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/06/08 14:47:56 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,7 +45,16 @@ int	main(int argc, char **argv)
 		destroy_simulation(&simulation);
 		return (1);
 	}
+	if (start_monitor_thread(&simulation) != 0)
+	{
+		stop_simulation(&simulation);
+		join_coder_threads(&simulation);
+		destroy_simulation(&simulation);
+		return (1);
+	}
 	join_coder_threads(&simulation);
+	stop_simulation(&simulation);
+	join_monitor_thread(&simulation);
 	destroy_simulation(&simulation);
 	return (0);
 }

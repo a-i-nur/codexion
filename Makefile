@@ -14,7 +14,8 @@ SRCS = coders/main.c \
 	coders/coder.c \
 	coders/threads.c \
 	coders/dongle.c \
-	coders/scheduler.c
+	coders/scheduler.c \
+	coders/monitor.c \
 
 OBJS = $(SRCS:.c=.o)
 

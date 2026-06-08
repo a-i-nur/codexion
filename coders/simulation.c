@@ -6,7 +6,7 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/01 16:53:37 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/08 14:11:13 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/06/08 14:25:29 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,6 +45,7 @@ void	stop_simulation(t_simulation *simulation)
 {
 	pthread_mutex_lock(&simulation->stop_mutex);
 	simulation->stop = 1;
+	pthread_mutex_unlock(&simulation->stop_mutex);
 }
 
 void	destroy_simulation(t_simulation *simulation)
