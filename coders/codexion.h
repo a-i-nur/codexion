@@ -6,7 +6,7 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 18:20:54 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/02 16:17:23 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/06/08 14:17:14 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,12 +41,36 @@ typedef struct s_args
 	int		error_type;
 }	t_args;
 typedef struct s_simulation	t_simulation;
+typedef struct s_coder		t_coder;
+typedef struct s_dongle
+{
+	int				id;
+	int				available;
+	long			cooldown_until;
+	pthread_mutex_t	mutex;
+}   t_dongle;
+typedef struct s_request
+{
+	t_coder	*coder;
+	long	arrival_order;
+	long	deadline;
+}	t_request;
+typedef struct s_request_heap
+{
+	t_request	*requests;
+	int			size;
+	int			capacity;
+	long		next_arrival_order;
+}	t_request_heap;
 typedef struct s_coder
 {
 	int				id;
 	int				compiles_done;
 	long			last_compile_start;
 	t_simulation	*simulation;
+	pthread_t		thread;
+	t_dongle		*left_dongle;
+	t_dongle		*right_dongle;
 	pthread_mutex_t	state_mutex;
 }	t_coder;
 typedef struct s_simulation
@@ -57,6 +81,10 @@ typedef struct s_simulation
 	pthread_mutex_t	log_mutex;
 	pthread_mutex_t	stop_mutex;
 	t_coder			*coders;
+	t_dongle		*dongles;
+	t_request_heap	request_heap;
+	pthread_mutex_t	scheduler_mutex;
+	pthread_cond_t	scheduler_cond;
 }	t_simulation;
 
 t_args			new_args(void);
@@ -80,5 +108,24 @@ void			destroy_simulation(t_simulation *simulation);
 
 int				init_coders(t_simulation *simulation);
 void			destroy_coders(t_simulation *simulation);
+
+int				init_dongles(t_simulation *simulation);
+void			destroy_dongles(t_simulation *simulation);
+
+void			update_last_compile_start(t_coder *coder);
+void			increment_compiles_done(t_coder *coder);
+long			get_last_compile_start(t_coder *coder);
+int				get_compiles_done(t_coder *coder);
+
+void			*coder_routine(void *data);
+int				start_coder_threads(t_simulation *simulation);
+void			join_coder_threads(t_simulation *simulation);
+
+int				init_request_heap(t_simulation *simulation);
+void			destroy_request_heap(t_simulation *simulation);
+int				request_heap_insert(t_simulation *simulation,
+					t_coder *coder);
+t_coder			*request_heap_remove(t_simulation *simulation);
+t_coder			*request_heap_peek(t_simulation *simulation);
 
 #endif
