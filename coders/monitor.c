@@ -12,41 +12,71 @@
 
 #include "codexion.h"
 
+static int	all_coders_finished(t_simulation *simulation)
+{
+	int	i;
+
+	i = 0;
+	while (i < simulation->args.num_of_coders)
+	{
+		if (get_compiles_done(&simulation->coders[i])
+			< simulation->args.num_of_compiles_req)
+			return (0);
+		i++;
+	}
+	return (1);
+}
+
+static int	find_burned_out_coder(t_simulation *simulation)
+{
+	int		i;
+	long	elapsed;
+
+	i = 0;
+	while (i < simulation->args.num_of_coders)
+	{
+		elapsed = get_time_ms()
+			- get_last_compile_start(&simulation->coders[i]);
+		if (get_compiles_done(&simulation->coders[i])
+			< simulation->args.num_of_compiles_req
+			&& elapsed >= simulation->args.time_to_burnout)
+			return (i);
+		i++;
+	}
+	return (-1);
+}
+
+static void	wake_scheduler(t_simulation *simulation)
+{
+	pthread_mutex_lock(&simulation->scheduler_mutex);
+	pthread_cond_broadcast(&simulation->scheduler_cond);
+	pthread_mutex_unlock(&simulation->scheduler_mutex);
+}
+
 void	*monitor_routine(void *data)
 {
 	t_simulation	*simulation;
-	int				i;
+	int				burned_out;
 
 	simulation = (t_simulation *)data;
+	if (!wait_for_simulation_start(simulation))
+		return (NULL);
 	while (!simulation_stopped(simulation))
 	{
-		i = 0;
-		while (i < simulation->args.num_of_coders)
+		if (all_coders_finished(simulation))
 		{
-			if (get_compiles_done(&simulation->coders[i])
-				< simulation->args.num_of_compiles_req
-				&& get_time_ms() - get_last_compile_start(
-					&simulation->coders[i])
-				>= simulation->args.time_to_burnout)
-			{
-				stop_simulation(simulation);
-				log_burnout(simulation, simulation->coders[i].id);
-				return (NULL);
-			}
-			i++;
+			stop_simulation(simulation);
+			return (NULL);
 		}
+		burned_out = find_burned_out_coder(simulation);
+		if (burned_out >= 0)
+		{
+			stop_simulation(simulation);
+			log_burnout(simulation, simulation->coders[burned_out].id);
+			return (NULL);
+		}
+		wake_scheduler(simulation);
 		usleep(500);
 	}
 	return (NULL);
-}
-
-int	start_monitor_thread(t_simulation *simulation)
-{
-	return (pthread_create(&simulation->monitor_thread, NULL,
-			monitor_routine, simulation));
-}
-
-void	join_monitor_thread(t_simulation *simulation)
-{
-	pthread_join(simulation->monitor_thread, NULL);
 }
