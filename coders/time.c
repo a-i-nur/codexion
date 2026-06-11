@@ -6,7 +6,7 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/01 14:34:25 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/02 13:32:53 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/06/09 14:03:51 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,12 +15,7 @@
 long	get_time_ms(void)
 {
 	struct timeval	tv;
-	// This function will return the current time in milliseconds.
-	// struct timeval is the type used by gettimeofday().
-	// It contains:
-	// tv.tv_sec   seconds
-	// tv.tv_usec  microseconds
-	// Fill the variable tv with the current real time.
+
 	gettimeofday(&tv, NULL);
 	return (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
@@ -36,5 +31,15 @@ void	precise_sleep(long duration_ms)
 
 	start_time = get_time_ms();
 	while (get_elapsed_ms(start_time) < duration_ms)
+		usleep(500);
+}
+
+void	simulation_sleep(t_simulation *simulation, long duration_ms)
+{
+	long	start_time;
+
+	start_time = get_time_ms();
+	while (!simulation_stopped(simulation)
+		&& get_elapsed_ms(start_time) < duration_ms)
 		usleep(500);
 }
