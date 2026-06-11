@@ -6,7 +6,7 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 18:20:54 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/08 14:44:17 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/06/09 14:32:02 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,12 +48,14 @@ typedef struct s_dongle
 	int				available;
 	long			cooldown_until;
 	pthread_mutex_t	mutex;
-}   t_dongle;
+}	t_dongle;
 typedef struct s_request
 {
 	t_coder	*coder;
 	long	arrival_order;
 	long	deadline;
+	int		considered;
+	int		selected;
 }	t_request;
 typedef struct s_request_heap
 {
@@ -78,12 +80,14 @@ typedef struct s_simulation
 	t_args			args;
 	long			start_time;
 	int				stop;
+	int				ready;
 	pthread_mutex_t	log_mutex;
 	pthread_mutex_t	stop_mutex;
 	t_coder			*coders;
 	t_dongle		*dongles;
 	t_request_heap	request_heap;
 	pthread_t		monitor_thread;
+	int				started_threads;
 	pthread_mutex_t	scheduler_mutex;
 	pthread_cond_t	scheduler_cond;
 }	t_simulation;
@@ -98,14 +102,18 @@ void			error_message(int error_type);
 long			get_time_ms(void);
 long			get_elapsed_ms(long start_time);
 void			precise_sleep(long duration_ms);
+void			simulation_sleep(t_simulation *simulation,
+					long duration_ms);
 
 void			log_message(t_simulation *simulation,
 					int coder_id, char *message);
 void			log_burnout(t_simulation *simulation, int coder_id);
 
-t_simulation	new_simulation(t_args args);
+int				init_simulation(t_simulation *simulation, t_args args);
 int				simulation_stopped(t_simulation *simulation);
 void			stop_simulation(t_simulation *simulation);
+void			start_simulation(t_simulation *simulation);
+int				wait_for_simulation_start(t_simulation *simulation);
 void			destroy_simulation(t_simulation *simulation);
 
 int				init_coders(t_simulation *simulation);
@@ -115,6 +123,7 @@ int				init_dongles(t_simulation *simulation);
 void			destroy_dongles(t_simulation *simulation);
 int				acquire_dongles(t_coder *coder);
 void			release_dongles(t_coder *coder);
+int				take_dongles_if_usable(t_coder *coder);
 
 void			update_last_compile_start(t_coder *coder);
 void			increment_compiles_done(t_coder *coder);
@@ -129,8 +138,12 @@ int				init_request_heap(t_simulation *simulation);
 void			destroy_request_heap(t_simulation *simulation);
 int				request_heap_insert(t_simulation *simulation,
 					t_coder *coder);
-t_coder			*request_heap_remove(t_simulation *simulation);
-t_coder			*request_heap_peek(t_simulation *simulation);
+void			request_heap_remove_coder(t_simulation *simulation,
+					t_coder *coder);
+int				request_heap_coder_has_priority(
+					t_simulation *simulation, t_coder *coder);
+int				request_has_priority(t_simulation *simulation,
+					t_request *first, t_request *second);
 
 void			*monitor_routine(void *data);
 int				start_monitor_thread(t_simulation *simulation);
