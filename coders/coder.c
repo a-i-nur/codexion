@@ -6,11 +6,33 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/02 14:37:15 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/08 13:58:18 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/06/09 14:27:19 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
+
+static void	init_coder_values(t_simulation *simulation, int i)
+{
+	simulation->coders[i].id = i + 1;
+	simulation->coders[i].compiles_done = 0;
+	simulation->coders[i].last_compile_start = simulation->start_time;
+	simulation->coders[i].simulation = simulation;
+	simulation->coders[i].left_dongle = &simulation->dongles[i];
+	simulation->coders[i].right_dongle = &simulation->dongles[
+		(i + 1) % simulation->args.num_of_coders];
+}
+
+static void	cleanup_coders(t_simulation *simulation, int count)
+{
+	while (count > 0)
+	{
+		count--;
+		pthread_mutex_destroy(&simulation->coders[count].state_mutex);
+	}
+	free(simulation->coders);
+	simulation->coders = NULL;
+}
 
 int	init_coders(t_simulation *simulation)
 {
@@ -23,14 +45,12 @@ int	init_coders(t_simulation *simulation)
 	i = 0;
 	while (i < simulation->args.num_of_coders)
 	{
-		simulation->coders[i].id = i + 1;
-		simulation->coders[i].compiles_done = 0;
-		simulation->coders[i].last_compile_start = simulation->start_time;
-		simulation->coders[i].simulation = simulation;
-		simulation->coders[i].left_dongle = &simulation->dongles[i];
-		simulation->coders[i].right_dongle = &simulation->dongles[
-			(i + 1) % simulation->args.num_of_coders];
-		pthread_mutex_init(&simulation->coders[i].state_mutex, NULL);
+		init_coder_values(simulation, i);
+		if (pthread_mutex_init(&simulation->coders[i].state_mutex, NULL) != 0)
+		{
+			cleanup_coders(simulation, i);
+			return (1);
+		}
 		i++;
 	}
 	return (0);
@@ -42,46 +62,6 @@ void	destroy_coders(t_simulation *simulation)
 
 	if (simulation->coders == NULL)
 		return ;
-	i = 0;
-	while (i < simulation->args.num_of_coders)
-	{
-		pthread_mutex_destroy(&simulation->coders[i].state_mutex);
-		i++;
-	}
-	free(simulation->coders);
-	simulation->coders = NULL;
-}
-
-void	update_last_compile_start(t_coder *coder)
-{
-	pthread_mutex_lock(&coder->state_mutex);
-	coder->last_compile_start = get_time_ms();
-	pthread_mutex_unlock(&coder->state_mutex);
-}
-
-void	increment_compiles_done(t_coder *coder)
-{
-	pthread_mutex_lock(&coder->state_mutex);
-	coder->compiles_done++;
-	pthread_mutex_unlock(&coder->state_mutex);
-}
-
-long	get_last_compile_start(t_coder *coder)
-{
-	long	last_compile_start;
-
-	pthread_mutex_lock(&coder->state_mutex);
-	last_compile_start = coder->last_compile_start;
-	pthread_mutex_unlock(&coder->state_mutex);
-	return (last_compile_start);
-}
-
-int	get_compiles_done(t_coder *coder)
-{
-	int	compiles_done;
-
-	pthread_mutex_lock(&coder->state_mutex);
-	compiles_done = coder->compiles_done;
-	pthread_mutex_unlock(&coder->state_mutex);
-	return (compiles_done);
+	i = simulation->args.num_of_coders;
+	cleanup_coders(simulation, i);
 }
