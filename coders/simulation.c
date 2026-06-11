@@ -6,46 +6,53 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/06/01 16:53:37 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/08 14:25:29 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/06/09 16:00:00 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "codexion.h"
 
-t_simulation	new_simulation(t_args args)
+static void	init_simulation_values(t_simulation *simulation, t_args args)
 {
-	t_simulation	simulation;
-
-	simulation.args = args;
-	simulation.start_time = get_time_ms();
-	simulation.stop = 0;
-	simulation.coders = NULL;
-	simulation.dongles = NULL;
-	simulation.request_heap.size = 0;
-	simulation.request_heap.capacity = args.num_of_coders;
-	simulation.request_heap.next_arrival_order = 0;
-	pthread_mutex_init(&simulation.log_mutex, NULL);
-	pthread_mutex_init(&simulation.stop_mutex, NULL);
-	pthread_mutex_init(&simulation.scheduler_mutex, NULL);
-	pthread_cond_init(&simulation.scheduler_cond, NULL);
-	return (simulation);
+	simulation->args = args;
+	simulation->start_time = get_time_ms();
+	simulation->stop = 0;
+	simulation->ready = 0;
+	simulation->started_threads = 0;
+	simulation->coders = NULL;
+	simulation->dongles = NULL;
+	simulation->request_heap.requests = NULL;
+	simulation->request_heap.size = 0;
+	simulation->request_heap.capacity = args.num_of_coders;
+	simulation->request_heap.next_arrival_order = 0;
 }
 
-int	simulation_stopped(t_simulation *simulation)
+static int	init_simulation_sync(t_simulation *simulation)
 {
-	int	stopped;
-
-	pthread_mutex_lock(&simulation->stop_mutex);
-	stopped = simulation->stop;
-	pthread_mutex_unlock(&simulation->stop_mutex);
-	return (stopped);
+	if (pthread_mutex_init(&simulation->log_mutex, NULL) != 0)
+		return (1);
+	if (pthread_mutex_init(&simulation->stop_mutex, NULL) != 0)
+		return (pthread_mutex_destroy(&simulation->log_mutex), 1);
+	if (pthread_mutex_init(&simulation->scheduler_mutex, NULL) != 0)
+	{
+		pthread_mutex_destroy(&simulation->stop_mutex);
+		pthread_mutex_destroy(&simulation->log_mutex);
+		return (1);
+	}
+	if (pthread_cond_init(&simulation->scheduler_cond, NULL) != 0)
+	{
+		pthread_mutex_destroy(&simulation->scheduler_mutex);
+		pthread_mutex_destroy(&simulation->stop_mutex);
+		pthread_mutex_destroy(&simulation->log_mutex);
+		return (1);
+	}
+	return (0);
 }
 
-void	stop_simulation(t_simulation *simulation)
+int	init_simulation(t_simulation *simulation, t_args args)
 {
-	pthread_mutex_lock(&simulation->stop_mutex);
-	simulation->stop = 1;
-	pthread_mutex_unlock(&simulation->stop_mutex);
+	init_simulation_values(simulation, args);
+	return (init_simulation_sync(simulation));
 }
 
 void	destroy_simulation(t_simulation *simulation)
