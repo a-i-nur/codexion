@@ -6,7 +6,7 @@
 /*   By: aakhmeto <aakhmeto@student.42heilbronn.de> +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/22 18:20:54 by aakhmeto          #+#    #+#             */
-/*   Updated: 2026/06/09 14:32:02 by aakhmeto         ###   ########.fr       */
+/*   Updated: 2026/07/10 15:16:30 by aakhmeto         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,6 @@
 # include <pthread.h>
 # include <stdio.h>
 # include <stdlib.h>
-# include <string.h>
 # include <sys/time.h>
 # include <unistd.h>
 # include <limits.h>
@@ -40,8 +39,6 @@ typedef struct s_args
 	char	*scheduler;
 	int		error_type;
 }	t_args;
-typedef struct s_simulation	t_simulation;
-typedef struct s_coder		t_coder;
 typedef struct s_dongle
 {
 	int				id;
@@ -49,6 +46,7 @@ typedef struct s_dongle
 	long			cooldown_until;
 	pthread_mutex_t	mutex;
 }	t_dongle;
+typedef struct s_coder		t_coder;
 typedef struct s_request
 {
 	t_coder	*coder;
@@ -64,6 +62,7 @@ typedef struct s_request_heap
 	int			capacity;
 	long		next_arrival_order;
 }	t_request_heap;
+typedef struct s_simulation	t_simulation;
 typedef struct s_coder
 {
 	int				id;
