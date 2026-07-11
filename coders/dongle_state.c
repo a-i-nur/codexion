@@ -12,6 +12,7 @@
 
 #include "codexion.h"
 
+/* Locks a coder's two dongle mutexes in id order. */
 static void	lock_dongles(t_coder *coder)
 {
 	if (coder->left_dongle->id < coder->right_dongle->id)
@@ -26,6 +27,7 @@ static void	lock_dongles(t_coder *coder)
 	}
 }
 
+/* Unlocks a coder's two dongle mutexes. */
 static void	unlock_dongles(t_coder *coder)
 {
 	pthread_mutex_unlock(&coder->left_dongle->mutex);

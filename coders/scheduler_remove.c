@@ -12,6 +12,7 @@
 
 #include "codexion.h"
 
+/* Swaps two heap requests. */
 static void	swap_requests(t_request *first, t_request *second)
 {
 	t_request	temporary;
@@ -21,6 +22,7 @@ static void	swap_requests(t_request *first, t_request *second)
 	*second = temporary;
 }
 
+/* Moves a request up until the heap priority order is restored. */
 static void	shift_up(t_simulation *simulation, int index)
 {
 	t_request_heap	*heap;
@@ -38,6 +40,7 @@ static void	shift_up(t_simulation *simulation, int index)
 	}
 }
 
+/* Moves a request down until the heap priority order is restored. */
 static void	shift_down(t_simulation *simulation, int index)
 {
 	t_request_heap	*heap;

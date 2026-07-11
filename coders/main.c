@@ -12,6 +12,7 @@
 
 #include "codexion.h"
 
+/* Initializes all simulation data. Returns 0 on success, 1 on error. */
 static int	init_data(t_simulation *simulation, t_args args)
 {
 	if (init_simulation(simulation, args) != 0)
@@ -26,6 +27,7 @@ static int	init_data(t_simulation *simulation, t_args args)
 	return (0);
 }
 
+/* Runs all simulation threads. Returns 0 on success, 1 on start error. */
 static int	run_simulation(t_simulation *simulation)
 {
 	if (start_coder_threads(simulation) != 0)

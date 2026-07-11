@@ -12,6 +12,7 @@
 
 #include "codexion.h"
 
+/* Initializes fixed fields for one coder. */
 static void	init_coder_values(t_simulation *simulation, int i)
 {
 	simulation->coders[i].id = i + 1;
@@ -23,6 +24,7 @@ static void	init_coder_values(t_simulation *simulation, int i)
 		(i + 1) % simulation->args.num_of_coders];
 }
 
+/* Destroys initialized coder mutexes and frees the coder array. */
 static void	cleanup_coders(t_simulation *simulation, int count)
 {
 	while (count > 0)

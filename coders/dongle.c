@@ -12,6 +12,7 @@
 
 #include "codexion.h"
 
+/* Destroys initialized dongle mutexes and frees the dongle array. */
 static void	cleanup_dongles(t_simulation *simulation, int count)
 {
 	while (count > 0)

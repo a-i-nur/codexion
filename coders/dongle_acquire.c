@@ -12,12 +12,14 @@
 
 #include "codexion.h"
 
+/* Waits on scheduler_cond and re-locks scheduler_mutex before returning. */
 static void	wait_for_scheduler(t_simulation *simulation)
 {
 	pthread_cond_wait(&simulation->scheduler_cond,
 		&simulation->scheduler_mutex);
 }
 
+/* Waits until stop when one coder cannot take two different dongles. */
 static int	wait_with_one_dongle(t_simulation *simulation)
 {
 	while (!simulation_stopped(simulation))
@@ -25,6 +27,7 @@ static int	wait_with_one_dongle(t_simulation *simulation)
 	return (0);
 }
 
+/* Tries to take scheduled dongles. Returns 1 on success, 0 otherwise. */
 static int	take_scheduled_dongles(t_coder *coder)
 {
 	t_simulation	*simulation;

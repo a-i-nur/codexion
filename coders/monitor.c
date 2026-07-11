@@ -12,6 +12,7 @@
 
 #include "codexion.h"
 
+/* Returns 1 if all coders reached the required compile count. */
 static int	all_coders_finished(t_simulation *simulation)
 {
 	int	i;
@@ -27,6 +28,7 @@ static int	all_coders_finished(t_simulation *simulation)
 	return (1);
 }
 
+/* Returns the id of a burned out coder, or 0 if none burned out. */
 static int	find_burned_out_coder(t_simulation *simulation)
 {
 	int		i;
@@ -46,6 +48,7 @@ static int	find_burned_out_coder(t_simulation *simulation)
 	return (-1);
 }
 
+/* Wakes all threads waiting on the scheduler condition variable. */
 static void	wake_scheduler(t_simulation *simulation)
 {
 	pthread_mutex_lock(&simulation->scheduler_mutex);

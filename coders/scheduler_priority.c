@@ -21,6 +21,7 @@ int	request_has_priority(t_simulation *simulation,
 	return (first->arrival_order < second->arrival_order);
 }
 
+/* Returns 1 if two requests need at least one same dongle. */
 static int	requests_conflict(t_request *first, t_request *second)
 {
 	t_coder	*a;
@@ -34,6 +35,7 @@ static int	requests_conflict(t_request *first, t_request *second)
 		|| a->right_dongle == b->right_dongle);
 }
 
+/* Returns the index of the best unconsidered request, or -1 if none exists. */
 static int	find_best_request(t_simulation *simulation)
 {
 	t_request_heap	*heap;
@@ -54,6 +56,7 @@ static int	find_best_request(t_simulation *simulation)
 	return (best);
 }
 
+/* Returns 1 if the request does not conflict with already selected requests. */
 static int	can_select_request(t_request_heap *heap, int best)
 {
 	int	i;

@@ -12,6 +12,7 @@
 
 #include "codexion.h"
 
+/* Performs the compile phase. Returns 1 to continue, 0 to stop. */
 static int	compile_code(t_coder *coder)
 {
 	if (!acquire_dongles(coder))
@@ -30,6 +31,7 @@ static int	compile_code(t_coder *coder)
 	return (!simulation_stopped(coder->simulation));
 }
 
+/* Performs debug and refactor phases. Returns 1 to continue, 0 to stop. */
 static int	debug_and_refactor(t_coder *coder)
 {
 	log_message(coder->simulation, coder->id, "is debugging");

@@ -12,6 +12,7 @@
 
 #include "codexion.h"
 
+/* Fills simulation fields with initial values. */
 static void	init_simulation_values(t_simulation *simulation, t_args args)
 {
 	simulation->args = args;
@@ -27,6 +28,7 @@ static void	init_simulation_values(t_simulation *simulation, t_args args)
 	simulation->request_heap.next_arrival_order = 0;
 }
 
+/* Initializes sync objects. Returns 0 on success, 1 on error. */
 static int	init_simulation_sync(t_simulation *simulation)
 {
 	if (pthread_mutex_init(&simulation->log_mutex, NULL) != 0)
