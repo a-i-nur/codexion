@@ -85,6 +85,13 @@ The two scheduling policies define different priority rules:
 FIFO focuses on arrival fairness. EDF focuses on urgency and attempts to serve
 the coder that is closest to burnout.
 
+In this project, the program is a single process that creates one pthread per
+coder and one monitor pthread. Shared state is coordinated with mutexes and one
+scheduler condition variable: mutexes protect the dongles, coder state, stop
+state, scheduler heap, and output, while the condition variable lets waiting
+coders sleep until a resource, cooldown, start, or shutdown event changes the
+scheduling decision.
+
 ## Priority heap
 
 A binary heap is a tree-shaped priority queue stored inside an array. The
@@ -95,6 +102,50 @@ Codexion implements its own heap because C89 has no standard priority queue.
 FIFO compares request arrival order, while EDF compares burnout deadlines.
 When a request is inserted or removed, it moves up or down until the heap
 priority rule is restored.
+
+Each heap node stores a waiting coder request: the coder pointer, an increasing
+arrival order, the current EDF deadline, and temporary selection flags used by
+the scheduler. The root is the best request according to the active policy, but
+the scheduler also scans the heap to select several non-conflicting requests in
+one pass. This allows coder 1 and coder 3, for example, to compile at the same
+time if they do not share a dongle.
+
+```text
+Coder wants to compile
+        |
+        v
+Create request
+  - coder id
+  - FIFO arrival order
+  - EDF deadline = last_compile_start + time_to_burnout
+        |
+        v
+Insert into binary heap
+        |
+        v
+Heap compares requests
+  fifo: lower arrival_order wins
+  edf : lower deadline wins
+        |
+        v
+Scheduler selection pass
+  1. clear considered/selected flags
+  2. repeatedly find the best unconsidered request
+  3. select it only if its dongles do not conflict
+     with already selected requests
+        |
+        v
+Can this coder run now?
+   | yes                         | no
+   v                             v
+Take both dongles          Sleep on condition variable
+Remove request             Wake on release/start/stop/tick
+Compile
+```
+
+For FIFO, equal urgency is handled naturally by arrival order. For EDF, the
+main priority is the earliest burnout deadline; when deadlines are equal, the
+current implementation falls back to arrival order.
 
 ## Instructions
 
@@ -155,6 +206,9 @@ norminette coders
   scheduler mutex, and individual dongle mutexes use ascending dongle-ID order.
 - Starvation prevention: every request enters a priority heap. FIFO uses request
   arrival order, while EDF uses the coder's next burnout deadline.
+- Data race prevention: every shared field is read and written through its
+  corresponding mutex, including dongle availability, cooldown timestamps, coder
+  compile counters, coder deadlines, the stop flag, heap state, and logs.
 - Parallel progress: the scheduler selects a non-conflicting set of requests, so
   coders using separate dongles may compile concurrently.
 - Cooldown handling: each released dongle stores an absolute `cooldown_until`
@@ -166,28 +220,78 @@ norminette coders
 - Partial initialization and thread failures: initialized resources and started
   threads are tracked and cleaned up before returning an error.
 
-The design breaks Coffman's hold-and-wait condition because a coder never keeps
-one dongle while waiting for another. Circular wait is also prevented by the
-global pair arbitration and consistent dongle lock ordering.
+Coffman's four deadlock conditions are addressed as follows:
+
+| Coffman condition | Meaning | How Codexion handles it |
+| --- | --- | --- |
+| Mutual exclusion | A dongle cannot be used by two coders at the same time. | This condition remains true by design and is protected by each dongle mutex. |
+| Hold and wait | A coder holds one resource while waiting for another. | Broken: a coder only succeeds when both dongles can be taken together, and does not keep one dongle while waiting for the other. |
+| No preemption | A resource cannot be forcibly taken away. | This remains true; coders release dongles after compiling or when stopping. The design avoids depending on preemption. |
+| Circular wait | Coders form a cycle while each waits for a resource held by the next. | Prevented by pair arbitration under the scheduler mutex and consistent dongle lock ordering. |
+
+The most important broken condition is hold and wait: no coder can reserve one
+dongle and block forever waiting for the second. Circular wait is also avoided
+by global scheduling and ordered dongle locking. Data races are handled
+separately from deadlocks: mutexes protect the shared memory itself, while the
+scheduler policy decides which coder may proceed.
 
 ## Thread synchronization mechanisms
 
-`pthread_mutex_t` protects:
+The simulation has three kinds of execution contexts. The main thread parses
+arguments, initializes shared state, creates all worker threads, opens the start
+gate, joins finished threads, and performs cleanup. Each coder thread represents
+one coder and repeatedly tries to acquire two neighboring dongles, compile,
+debug, and refactor. The monitor thread runs separately and checks whether all
+coders have finished or whether one coder has reached its burnout deadline.
 
-- each dongle's availability and cooldown timestamp;
-- each coder's compile count and last compile start;
-- the global stop flag;
-- scheduler heap operations;
-- serialized logging.
+The program uses mutexes for ownership of shared memory and a condition variable
+for scheduler wakeups. The mutexes are intentionally small in scope: each one
+protects one category of state, so unrelated work can continue in parallel.
 
-`pthread_cond_t` is shared by the scheduler. Coder threads sleep while their
-request is not selected or their dongles are unavailable. Releases, shutdown,
-simulation start, and monitor ticks broadcast the condition so waiting coders
-can re-evaluate their request.
+| Synchronization object | Type | Protected state or responsibility |
+| --- | --- | --- |
+| `dongle->mutex` | `pthread_mutex_t` | One dongle's `available` flag and `cooldown_until` timestamp. |
+| `coder->state_mutex` | `pthread_mutex_t` | One coder's `compiles_done` and `last_compile_start`. |
+| `simulation->stop_mutex` | `pthread_mutex_t` | The global `stop` flag checked by coders, monitor, sleeps, and logging. |
+| `simulation->scheduler_mutex` | `pthread_mutex_t` | Request heap changes, scheduler selection, start gate `ready`, and condition-variable waits. |
+| `simulation->log_mutex` | `pthread_mutex_t` | Complete output lines, preventing interleaved logs. |
+| `simulation->scheduler_cond` | `pthread_cond_t` | Wakeup channel for coders waiting on scheduler decisions, cooldown changes, start, stop, or monitor ticks. |
 
-All coder and monitor threads wait behind a start gate. The main thread sets one
-common start timestamp, resets every initial deadline, and then broadcasts the
-start condition. This prevents thread-creation time from affecting burnout.
+Coder and monitor threads also wait behind the same start gate. The main thread
+sets one common start timestamp, resets every initial deadline, sets `ready`,
+and broadcasts `scheduler_cond`. This prevents thread-creation time from
+affecting burnout deadlines.
+
+Race conditions are prevented by reading and writing shared state only while the
+matching mutex is held. For example, the monitor reads each coder's last compile
+start through `state_mutex`, and coder threads update that same value through
+the same mutex before logging `is compiling`.
+
+## Pthread API used
+
+Codexion uses the pthread API directly. Most pthread functions return `0` on
+success and a non-zero error code on failure. Mutex and condition variable
+objects are passed by address because the function updates the object itself.
+
+| Function | Signature | What it does | Arguments used in Codexion |
+| --- | --- | --- | --- |
+| `pthread_create` | `int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg);` | Starts a new thread that runs `start_routine(arg)`. | `thread` stores the created thread id; `attr` is `NULL` for default attributes; `start_routine` is `coder_routine` or `monitor_routine`; `arg` points to the coder or simulation data. |
+| `pthread_join` | `int pthread_join(pthread_t thread, void **retval);` | Waits until a thread finishes and reclaims its resources. | `thread` is a previously created coder or monitor thread; `retval` is `NULL` because the routines do not return a useful value. |
+| `pthread_mutex_init` | `int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);` | Initializes a mutex before it can be locked. | `mutex` points to a mutex field; `attr` is `NULL` for default mutex behavior. |
+| `pthread_mutex_lock` | `int pthread_mutex_lock(pthread_mutex_t *mutex);` | Locks the mutex. If another thread owns it, the caller waits. | `mutex` is the lock protecting the shared state about to be read or changed. |
+| `pthread_mutex_unlock` | `int pthread_mutex_unlock(pthread_mutex_t *mutex);` | Releases a mutex previously locked by the same thread. | `mutex` is the same lock acquired before the protected work. |
+| `pthread_mutex_destroy` | `int pthread_mutex_destroy(pthread_mutex_t *mutex);` | Destroys a mutex after no thread can use it anymore. | Called during cleanup for initialized mutexes. |
+| `pthread_cond_init` | `int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);` | Initializes a condition variable. | `cond` is `simulation->scheduler_cond`; `attr` is `NULL` for default behavior. |
+| `pthread_cond_wait` | `int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);` | Atomically unlocks `mutex`, sleeps until signaled or broadcast, then locks `mutex` again before returning. | `cond` is `scheduler_cond`; `mutex` is `scheduler_mutex`, which protects the condition being checked. |
+| `pthread_cond_broadcast` | `int pthread_cond_broadcast(pthread_cond_t *cond);` | Wakes all threads waiting on the condition variable. | Used when start, stop, dongle release, or monitor ticks may let waiting coders make progress. |
+| `pthread_cond_destroy` | `int pthread_cond_destroy(pthread_cond_t *cond);` | Destroys a condition variable after all waiters are gone. | Called during simulation cleanup. |
+
+The key rule is that a condition variable does not store the condition itself.
+The condition is the shared state protected by `scheduler_mutex`: whether the
+simulation has started, stopped, whether this request is selected, and whether
+its dongles are available and cooled down. That is why waiting happens inside a
+loop: after every wakeup, the coder re-checks the shared state before taking
+resources.
 
 ## Resources
 

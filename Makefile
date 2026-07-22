@@ -58,9 +58,12 @@ run_burnout: $(NAME)
 	./$(NAME) 2 200 200 200 200 2 0 fifo
 
 leaks: $(NAME)
-	valgrind --leak-check=full --show-leak-kinds=all ./$(NAME) 4 800 200 200 200 3 10 fifo
+	valgrind --leak-check=full --show-leak-kinds=all ./$(NAME) 5 800 200 200 200 3 10 fifo
 
-stress: $(NAME)
-	python3 tests/stress.py
+helgrind: $(NAME)
+	valgrind --tool=helgrind ./$(NAME) 5 800 200 200 200 3 10 fifo
 
-.PHONY: all clean fclean re run run_fifo run_edf run_burnout leaks stress
+#stress: $(NAME)
+#	python3 tests/stress.py
+
+.PHONY: all clean fclean re run run_fifo run_edf run_burnout leaks helgrind stress
