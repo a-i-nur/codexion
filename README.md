@@ -286,13 +286,6 @@ objects are passed by address because the function updates the object itself.
 | `pthread_cond_broadcast` | `int pthread_cond_broadcast(pthread_cond_t *cond);` | Wakes all threads waiting on the condition variable. | Used when start, stop, dongle release, or monitor ticks may let waiting coders make progress. |
 | `pthread_cond_destroy` | `int pthread_cond_destroy(pthread_cond_t *cond);` | Destroys a condition variable after all waiters are gone. | Called during simulation cleanup. |
 
-The key rule is that a condition variable does not store the condition itself.
-The condition is the shared state protected by `scheduler_mutex`: whether the
-simulation has started, stopped, whether this request is selected, and whether
-its dongles are available and cooled down. That is why waiting happens inside a
-loop: after every wakeup, the coder re-checks the shared state before taking
-resources.
-
 ## Resources
 
 - POSIX threads: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/pthread.h.html
